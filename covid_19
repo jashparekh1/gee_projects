@@ -1,0 +1,180 @@
+// 01/20/2021
+// Use this app to map the changes in global nitrogen dioxide before and after the COVID-19 outbreak and resultant suspension of economic activity.
+
+var land = landwaterMask.select('water_mask').eq(0).selfMask()
+
+//Add NASA and SDG Logos
+var logo = ee.Image("projects/mangrovescience/GoddardLogo");
+// var logo2 = ee.Image("projects/mangrovescience/SDGLogo");
+var branding = ui.Thumbnail({image:logo,params:{bands:['b1','b2','b3'],min:0,max:255, },
+style:{width:'133px',height:'140px',position:'bottom-center',padding: '10px 0px 0px 0px'}});
+
+// var branding2 = ui.Thumbnail({image:logo2,params:{bands:['b1','b2','b3'],min:0,max:255},
+// style:{width:'133px',height:'123px',position:'bottom-left',padding: '10px'}});
+
+var logoPan = ui.Panel({style: {position: 'bottom-right'}})
+//.setLayout(ui.Panel.Layout.absolute());
+
+logoPan.add(branding)
+// .add(branding2)
+Map.add(logoPan)
+var collection = ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_NO2')
+  .select('tropospheric_NO2_column_number_density')
+  // .filterDate('2020-02-01', '2020-03-13');
+
+var band_viz = {
+  min: 0,
+  max: 0.0002,
+  palette: ['black', 'blue', 'purple', 'cyan', 'green', 'yellow', 'red']
+};
+
+
+// Use the start of the collection and now to bound the slider.
+var start = ee.Image(collection.first()).date().get('year').format();
+var now = Date.now();
+var end = ee.Date(now).format();
+
+// Run this function on a change of the dateSlider.
+var showMosaic = function(range) {
+  var mosaic = collection.filterDate(range.start(), range.end()).mean().updateMask(land)
+  // Asynchronously compute the name of the composite.  Display it.
+  range.start().get('year').evaluate(function(name) {
+    var visParams = {bands: ['B4', 'B3', 'B2'], max: 100};
+    var layer = ui.Map.Layer(mosaic, band_viz, 'Composite');
+    Map.layers().set(0, layer);
+  });
+};
+
+// Asynchronously compute the date range and show the slider.
+var dateRange = ee.DateRange(start, end).evaluate(function(range) {
+  var dateSlider = ui.DateSlider({
+    start: range['dates'][0],
+    end: range['dates'][1],
+    value: null,
+    period: 14,
+    onChange: showMosaic,
+    style: {padding: '0px 0px 0px 8px'}
+  });
+  panelMain.add(dateSlider.setValue('2020-02-01'));
+});
+
+var period1 = collection.filterDate('2019-02-18', '2019-03-31').mean().updateMask(land)
+Map.addLayer(period1, band_viz, '2020', false);
+
+var period2 = collection.filterDate('2020-02-18', '2020-03-31').mean().updateMask(land)
+Map.addLayer(period2, band_viz, '2019', false);
+
+
+var band_viz_sub = {
+  min: 0,
+  max: 0.00005,
+  palette: ['black', 'blue', 'purple', 'cyan', 'green', 'yellow', 'red']
+};
+
+var subtracted = period1.subtract(period2)
+Map.addLayer(subtracted, band_viz_sub, 'subtracted')
+
+
+var panelMain = ui.Panel()
+panelMain.style().set({
+  maxHeight: '700px',
+  maxWidth: '450px',
+  position: 'top-left'
+});
+
+var title = ui.Label({
+  value: 'Impacts of COVID-19',
+  style: {fontWeight: 'bold',
+    fontSize: '32px',
+    padding: '10px',
+    color: '#616161',}
+})
+
+var text = ui.Label({
+  value: 'Map the changes in global nitrogen dioxide before and after the COVID-19 outbreak and resultant suspension of economic activity.',
+  style: {fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#9E9E9E',
+    padding: '8px',
+    // backgroundColor: colors.transparent,
+    border: '4px solid rgba(97, 97, 97, 0.05)'
+
+  }
+})
+
+
+
+
+
+
+panelMain.add(title)
+panelMain.add(text)
+var vis = {min:0, max:0.6, palette:['black', 'blue', 'purple', 'yellow', 'red']};
+
+// A function to construct a legend for the given single-band vis
+// parameters.  Requires that the vis parameters specify 'min' and 
+// 'max' but not 'bands'.
+function makeLegend(vis) {
+  var lon = ee.Image.pixelLonLat().select('longitude');
+  var gradient = lon.multiply((vis.max-vis.min)/100.0).add(vis.min);
+  var legendImage = gradient.visualize(vis);
+  
+  // Otherwise, add it to a panel and add the panel to the map.
+  var thumb = ui.Thumbnail({
+    image: legendImage, 
+    params: {bbox:'0,0,100,8', dimensions:'256x20'}, 
+    style: { padding: '0px 0px 0px 8px',
+      maxHeight: '100px'
+    }
+  });
+  var panel = ui.Panel({
+    widgets: [
+      ui.Label('0 mol/m^2'), 
+      ui.Label({style: {stretch: 'horizontal', padding: '0px 0px 0px 8px'}}), 
+      ui.Label('0.0002 mol/m^2')
+    ],
+    layout: ui.Panel.Layout.flow('horizontal'),
+    style: {stretch: 'horizontal', maxWidth: '350px', padding: '0px 0px 0px 8px'}
+  });
+  return ui.Panel().add(panel).add(thumb);
+}
+
+panelMain.add(makeLegend(vis));
+
+var text2 = ui.Label({
+  value: 'Use the date slider to visualize the average nitrogen dioxide concentration over a period of time. ',
+  style: {fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#9E9E9E',
+    padding: '8px',
+    // backgroundColor: colors.transparent,
+    border: '4px solid rgba(97, 97, 97, 0.05)'
+
+  }
+})
+// panelMain.add(text2)
+
+Map.add(panelMain)
+Map.setOptions('SATELLITE')
+Map.setCenter(95.56041378129855, 25.6221138285637, 4)
+
+
+Map.addLayer(collection.filterDate('2020-02-23', '2020-03-18').mean().updateMask(land), band_viz, '2020', false);
+// Map.addLayer(collection.filterDate('2020-02-01', '2020-03-18'), band_viz, '2020', false);
+
+
+var check0 = ui.Checkbox('Nitrogen Dioxide, February 1- March 18, 2019', false);
+check0.onChange(function(checked) {
+  Map.layers().get(1).setShown(checked);
+});
+check0.style().set({padding: '0px 0px 0px 8px '})
+
+var check1 = ui.Checkbox('Nitrogen Dioxide February 1- March 18, 2020', false);
+check1.onChange(function(checked) {
+  Map.layers().get(2).setShown(checked);
+});
+check1.style().set({padding: '0px 0px 0px 8px '})
+
+panelMain.add(check1)
+panelMain.add(check0)
+panelMain.add(text2)
