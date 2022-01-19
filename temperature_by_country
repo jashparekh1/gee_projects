@@ -1,0 +1,110 @@
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// 01/12/2020
+// App that plots average temperature of any country on the map + provides histograms
+// that show the highs and lows of that year
+// General Imports and Definitions
+
+// Import country boundaries feature collection.
+var dataset = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017');
+
+// Import LST image collection.
+var modis = ee.ImageCollection('MODIS/006/MOD11A2');
+
+// Define a date range of interest; here, a start date is defined and the end
+// date is determined by advancing 1 year from the start date.
+var start = ee.Date('2001-01-01');
+var dateRange = ee.DateRange(start, start.advance(1, 'year'));
+
+
+var start2 = ee.Date('2018-01-01');
+var dateRange2 = ee.DateRange(start, start.advance(1, 'year'));
+
+// Filter the LST collection to include only images intersecting the desired
+// date range.
+var mod11a2 = modis.filterDate(dateRange);
+var mod11a2v2 = modis.filterDate(dateRange2)
+
+// Select only the 1km day LST data band.
+var modLSTday = mod11a2.select('LST_Day_1km');
+var modLSTday2 = mod11a2v2.select('LST_Day_1km');
+
+// Scale day temp to Kelvin and convert to Celsius, set image acquisition time.
+var modLSTcday = modLSTday.map(function(img) {
+  return img
+    .multiply(0.02)
+    .subtract(273.15)
+    .copyProperties(img, ['system:time_start']);
+});
+
+var modLSTcday2 = modLSTday2.map(function(img) {
+  return img
+    .multiply(0.02)
+    .subtract(273.15)
+    .copyProperties(img, ['system:time_start']);
+});
+
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// India
+
+// Apply filter where country name equals India.
+var indiaBorder = dataset.filter(ee.Filter.eq('country_na', 'India'));
+
+// Print new "indiaBorder" object and explorer features and properties.
+print(indiaBorder);
+
+// Add India outline to the Map as a layer.
+Map.centerObject(indiaBorder, 4);
+Map.addLayer(indiaBorder);
+
+// Chart time series of Day LST for India in 2001.
+var ts1 = ui.Chart.image.series({
+  imageCollection: modLSTcday,
+  region: indiaBorder,
+  reducer: ee.Reducer.mean(),
+  scale: 1000,
+  xProperty: 'system:time_start'})
+  .setOptions({
+     title: 'India LST 2001 Day Time Series',
+     vAxis: {title: 'LST Celsius'}});
+print(ts1);
+
+// Chart time series of Day LST for India in 2018.
+var ts1 = ui.Chart.image.series({
+  imageCollection: modLSTcday2,
+  region: indiaBorder,
+  reducer: ee.Reducer.mean(),
+  scale: 1000,
+  xProperty: 'system:time_start'})
+  .setOptions({
+     title: 'India LST 2018 Day Time Series',
+     vAxis: {title: 'LST Celsius'}});
+print(ts1);
+
+
+// Calculate 8-day mean temperature for India in 2001.
+var clippedLSTcDay = modLSTcday.mean().clip(indiaBorder);
+
+// Calculate 8-day mean temperature for India in 208.
+var clippedLSTcDay2 = modLSTcday2.mean().clip(indiaBorder);
+
+
+// Add clipped image layer to the map.
+Map.addLayer(clippedLSTcDay, {
+  min: 20, max: 40,
+  palette: ['blue', 'limegreen', 'yellow', 'darkorange', 'red']},
+  'India Mean Day Temperature, 2001');
+  
+// Add clipped image layer to the map.
+Map.addLayer(clippedLSTcDay2, {
+  min: 20, max: 40,
+  palette: ['blue', 'limegreen', 'yellow', 'darkorange', 'red']},
+  'India Mean Day Temperature, 2018');
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+//–––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
