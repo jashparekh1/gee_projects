@@ -1,0 +1,292 @@
+// Jash R. Parekh
+// Evergreen Valley High School
+// First Updated: 03/30/2020
+// Last Updated: 04/13/2020
+
+//Add NASA and SDG Logos
+var logo = ee.Image("projects/mangrovescience/GoddardLogo");
+// var logo2 = ee.Image("projects/mangrovescience/SDGLogo");
+var branding = ui.Thumbnail({image:logo,params:{bands:['b1','b2','b3'],min:0,max:255},
+style:{width:'133px',height:'140px',position:'bottom-center',padding: '10px'}});
+// var branding2 = ui.Thumbnail({image:logo2,params:{bands:['b1','b2','b3'],min:0,max:255},
+// style:{width:'133px',height:'123px',position:'bottom-left',padding: '10px'}});
+
+var logoPan = ui.Panel({
+  style: {
+    width:'150px',
+    height:'150px',
+    position: 'bottom-right',
+    padding: '1px'
+  }
+}).setLayout(ui.Panel.Layout.absolute());
+
+logoPan.add(branding)
+// .add(branding2)
+Map.add(logoPan)
+
+
+
+
+// Uncomment one of the following statements to center the map.
+// long, lat 
+// west and south are neg
+// Map.setCenter(-90.162, 29.8597, 10);   // New Orleans, USA
+// Map.setCenter(-114.9774, 31.9254, 10); // Mouth of the Colorado River, Mexico
+// Map.setCenter(-111.1871, 37.0963, 11); // Lake Powell, USA
+// Map.setCenter(149.412, -35.0789, 11);  // Lake George, Australia
+// Map.setCenter(105.26, 11.2134, 5);     // Mekong River Basin, SouthEast Asia
+// Map.setCenter(90.6743, 22.7382, 10);   // Meghna River, Bangladesh
+ Map.setCenter(81.2714, 16.5079, 3);   // Godavari River Basin Irrigation Project, India
+// Map.setCenter(14.7035, 52.0985, 12);   // River Oder, Germany & Poland
+// Map.setCenter(-59.1696, -33.8111, 9);  // Buenos Aires, Argentina
+// Map.setCenter(-74.4557, -8.4289, 11);  // Ucayali River, Peru
+// Map.setCenter(-73.9712, 40.783, 8);    // Manhattan, New York, USA
+// Map.setCenter(18.4241, -33.9249, 8); // Cape Town, SA
+
+
+ 
+// Set years and month
+var startYear = 2018;
+var endYear = 2019;
+var years = ee.List.sequence(startYear, endYear);
+var months = ee.List.sequence(1, 3);
+
+var dataset = ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMCFG')
+                 //.filter(ee.Filter.date('2012-04-01', '2019-12-31'));
+//Map.addLayer(dataset);
+// print(dataset);
+
+var d1 = ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMCFG')
+                  .filter(ee.Filter.date('2019-01-01', '2019-03-31'));
+var nighttime1 = d1.select('avg_rad');
+var nighttimeVis1 = {min: 0.0, max: 60.0};
+Map.setCenter(-77.1056, 38.8904, 8);
+Map.addLayer(nighttime1, nighttimeVis1, '2019');
+
+var d2 = ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMCFG')
+                  .filter(ee.Filter.date('2020-01-01', '2020-03-31'));
+var nighttime2 = d2.select('avg_rad');
+var nighttimeVis2 = {min: 0.0, max: 60.0};
+Map.setCenter(-77.1056, 38.8904, 8);
+Map.addLayer(nighttime2, nighttimeVis2, '2020');
+
+// Loop over the years and months to get images
+var byMonth = ee.ImageCollection(ee.FeatureCollection(years.map(function (y) {
+ var yearCollection = dataset.filter(ee.Filter.calendarRange(y, y, 'year'));
+ var byYear = ee.ImageCollection.fromImages(
+   months.map(function (m) {
+     var meanImage = yearCollection.filter(ee.Filter.calendarRange(m, m, 'month'))
+         .select('avg_rad')
+         .mean();
+     var date = ee.Date.fromYMD(y, m, 1).format("YYYY_MM");
+     return meanImage.rename(date).set('system:time_start', ee.Date.fromYMD(y, m, 1));
+   }));
+ return byYear;
+})).flatten());
+
+print(byMonth);
+
+// Define a FeatureCollection: regions of the American West.
+ var SF = ee.FeatureCollection([
+  ee.Feature(    // San Francisco.
+    ee.Geometry.Rectangle(-122.45, 37.74, -122.4, 37.8), {label: 'SF'})]);
+ var SYD = ee.FeatureCollection([ee.Feature(    // Sydney.
+    ee.Geometry.Rectangle(151.1311, -33.8536, 151.2464, -33.9949), {label: 'Sydney'})]);
+ var NY = ee.FeatureCollection([ee.Feature(    // Manhattan.
+   ee.Geometry.Rectangle(-74.0371, 40.9243, -74.1964, 40.6664), {label: 'Manhattan, NY'})]);
+ var CT = ee.FeatureCollection([ee.Feature(    // Cape Town, SA.
+     ee.Geometry.Rectangle(18.4845, -33.8063, 18.4351, -33.9295), {label: 'Cape Town'})]);
+ //ee.Feature(  // Tahoe National Forest.
+   //ee.Geometry.Rectangle(-121, 39.4, -120.8, 39.8), {label: 'Forest'}),
+ //ee.Feature(  // Black Rock Desert.
+   //ee.Geometry.Rectangle(-119.15, 40.8, -119, 41), {label: 'Desert'}),
+
+
+
+
+// Create a time series chart.
+//var tempTimeSeries = ui.Chart.image.seriesByRegion(
+   //byMonth, regions, ee.Reducer.mean(), 0, 200, 'system:time_start', 'label')
+       //.setChartType('ScatterChart')
+       //.setOptions({
+         //title: 'Night Time Radiance in SF',
+        // vAxis: {title: 'avg_rad'},
+         //lineWidth: 1,
+        // pointSize: 4,
+        // series: {
+           //0: {color: 'FF0000'}, // SF
+           //1: {color: '00FF00'}, // Sydney
+          // 2: {color: ''}  // desert
+//}});
+
+//print(tempTimeSeries);
+
+//var byMonthBandAdj = byMonth.select([0],['avg_rad']);
+//print(byMonthBandAdj);
+
+//var places = {
+  //SF: [-122.45, 37.74, -122.4, 37.8],
+  //SYDNEY: [151.1311, -33.8536, 151.2464, -33.9949],
+  //NY: [-74.0371, 40.9243, -74.1964, 40.6664]
+//};
+
+//var select = ui.Select({
+  //items: Object.keys(places),
+  //onChange: function(key) {
+   // Map.setCenter(places[key][0], places[key][1]);
+  //}
+//});
+
+// Set a place holder.
+//select.setPlaceholder('Choose a location...');
+
+//print(select);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+
+// Button widget for SF
+var button = ui.Button('San Francisco, USA');
+
+// Set a callback function to run when the
+// button is clicked.
+button.onClick(function() {
+  var tempTimeSeries1 = ui.Chart.image.seriesByRegion(
+   byMonth, SF, ee.Reducer.mean(), 0, 200, 'system:time_start', 'label')
+       .setChartType('ColumnChart')
+       .setOptions({
+         title: 'Night Time Radiance in SF',
+         vAxis: {title: 'avg_rad'},
+         lineWidth: 1,
+         pointSize: 4,
+         series: {
+           0: {color: 'FF0000'}, // SF
+}});
+print(tempTimeSeries1);
+});
+
+
+// Display the button in the console.
+print(button);
+
+// Button widget for SYD
+var button = ui.Button('Sydney, AUS');
+
+// Set a callback function to run when the
+// button is clicked.
+button.onClick(function() {
+  var tempTimeSeries2 = ui.Chart.image.seriesByRegion(
+   byMonth, SYD, ee.Reducer.mean(), 0, 200, 'system:time_start', 'label')
+       .setChartType('ColumnChart')
+       .setOptions({
+         title: 'Night Time Radiance in Sydney, AUS',
+         vAxis: {title: 'avg_rad'},
+         lineWidth: 1,
+         pointSize: 4,
+         series: {
+           0: {color: '33FF8D'}, // Sydney
+}});
+print(tempTimeSeries2);
+});
+
+
+// Display the button in the console.
+print(button);
+
+
+// Button widget for NY
+var button = ui.Button('Manhattan, NY, USA');
+
+// Set a callback function to run when the
+// button is clicked.
+button.onClick(function() {
+  var tempTimeSeries3 = ui.Chart.image.seriesByRegion(
+   byMonth, NY, ee.Reducer.mean(), 0, 200, 'system:time_start', 'label')
+       .setChartType('ColumnChart')
+       .setOptions({
+         title: 'Night Time Radiance in Manhattan',
+         vAxis: {title: 'avg_rad'},
+         lineWidth: 1,
+         pointSize: 4,
+         series: {
+           0: {color: '338AFF'}, // Manhattan
+}});
+print(tempTimeSeries3);
+});
+
+
+// Display the button in the console.
+print(button);
+
+
+    
+// Button widget for Cape Town, SA
+var button = ui.Button('Cape Town, SA');
+
+// Set a callback function to run when the
+// button is clicked.
+button.onClick(function() {
+  var tempTimeSeries4 = ui.Chart.image.seriesByRegion(
+   byMonth, CT, ee.Reducer.mean(), 0, 200, 'system:time_start', 'label')
+       .setChartType('ColumnChart')
+       .setOptions({
+         title: 'Night Time Radiance in Cape Town',
+         vAxis: {title: 'avg_rad'},
+         lineWidth: 1,
+         pointSize: 4,
+         series: {
+           0: {color: '9933FF'}, // Cape Town
+}});
+print(tempTimeSeries4);
+});
+
+
+// Display the button in the console.
+print(button);
+
+
+
+var panel = ui.Panel()
+panel.style().set({
+  maxHeight: '700px',
+  maxWidth: '450px',
+  position: 'top-left'
+});
+
+var title = ui.Label({
+  value: 'Nighttime Radiation Change Map',
+  style: {fontWeight: 'bold',
+    fontSize: '32px',
+    padding: '10px',
+    color: '#616161',}
+})
+
+var text = ui.Label({
+  value: 'Use this app to map and plot changes in the extent of global nighttime radiation over the past 8 years',
+  style: {fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#9E9E9E',
+    padding: '8px',
+    // backgroundColor: colors.transparent,
+    border: '4px solid rgba(97, 97, 97, 0.05)'
+
+  }
+})
+
+panel.add(title);
+panel.add(text)
+Map.add(panel);
