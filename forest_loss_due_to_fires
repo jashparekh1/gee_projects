@@ -1,0 +1,97 @@
+// Jash Parekh
+// 01/20/2020
+// Evergreen Valley High School, San Jose
+
+// Google Earth Engine script to calculate the forest loss due to fires
+
+// Load country features from Large Scale International Boundary (LSIB) dataset.
+var countries = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017');
+
+// Subset the Brazil feature from countries.
+var country = countries.filter(ee.Filter.eq('country_na', 'Brazil'));
+
+// Set the map center to be the Amazon Rainforest in Brazil
+Map.setCenter(-62.2159,-3.4653,5)
+
+// Get the forest loss image from the Hansen Global Forest Change dataset
+var gfc = ee.Image('UMD/hansen/global_forest_change_2018_v1_6');
+
+// Select the forest loss band
+var lossImage = gfc.select(['loss']);
+
+// Select the loss year band
+var lossYear = gfc.select(['lossyear']);
+
+// Get the area image multiplying each pixel in the loss image with the land area it covers
+var lossAreaImage = lossImage.multiply(ee.Image.pixelArea());
+
+// Add loss year as a band to the lossAreaImage
+var lossAreaByYear = lossAreaImage.addBands(lossYear);
+
+// Create the mask by selecting lossYear = 18 (2018)
+var lossYearMask = lossYear.eq(18);
+
+// Apply the mask and select the loss
+var lossAreaByYearMask = lossAreaByYear.updateMask(lossYearMask);
+var lossAreaByYearMaskImage = lossAreaByYearMask.select(['loss']);
+
+// Sum the values of pixels of the forest loss area image
+// This gives the total forest loss since 2000
+var lossStats = lossAreaImage.reduceRegion({
+ reducer: ee.Reducer.sum(),
+ geometry: country,
+ scale: 1000,
+ bestEffort: true,
+ maxPixels: 1e9
+});
+
+// Sum the values of pixels of the forest loss area image
+// This gives the forest loss in the year 2018
+var lossStats2018 = lossAreaByYearMaskImage.reduceRegion({
+ reducer: ee.Reducer.sum(),
+ geometry: country,
+ scale: 1000,
+ bestEffort: true,
+ maxPixels: 1e9
+});
+
+// Print the forest loss area
+var areaLoss = ee.Number(lossStats.get('loss')).divide(1e6);
+print('Total forest area loss : ', areaLoss, ' square km');
+
+// Print the forest loss area for 2018
+var areaLoss2018 = ee.Number(lossStats2018.get('loss')).divide(1e6);
+print('Forest area loss in 2018 : ', areaLoss2018, ' square km');
+
+// Read MODIS fire data and filter it to the year 2018
+var fireData = ee.ImageCollection('MODIS/006/MOD14A1')
+   .filterDate('2018-01-01', '2018-12-31')
+;
+// Create a fire mask to display forest fires
+var fireMaskVis = {
+min: 0.0,
+max: 100.0,
+bands: ['MaxFRP', 'FireMask', 'FireMask'],
+};
+
+// Add the fire layer to the map
+Map.addLayer(fireData, fireMaskVis, 'Fire Mask');
+
+// Determine the forest area loss due to fires by combining the Hansen dataset and the MODIS dataset
+var fireDataComposite = fireData.max();
+var fireDataCompositeMaxFRP = fireDataComposite.select(['MaxFRP']);
+var fireDataCompositeMaxFRPBin = fireDataCompositeMaxFRP.gt(0);
+var areaForestLossFires = lossAreaByYearMaskImage.multiply(fireDataCompositeMaxFRPBin);
+
+// Sum the values of pixels of the forest loss area image
+// This gives the forest loss due to fires in the year 2018
+var forestFiresLossStats = areaForestLossFires.reduceRegion({
+ reducer: ee.Reducer.sum(),
+ geometry: country,
+ scale: 1000,
+ bestEffort: true,
+ maxPixels: 1e9
+});
+var areaFiresLoss = ee.Number(forestFiresLossStats.get('loss')).divide(1e6);
+
+print('Forest area loss due to fires 2018: ', areaFiresLoss, ' square km');
