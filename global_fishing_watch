@@ -1,0 +1,346 @@
+// 07/22/2020
+// A global fishing watch app that displays illegal fishing in marine protected areas and tracks where it occurs the most on a yearly basis.
+
+var panel = ui.Panel()
+panel.style().set({
+  // maxHeight: '700px',
+  maxWidth: '450px',
+  position: 'top-left'
+});
+
+
+// Import GFW data
+var gfw = ee.ImageCollection('GFW/GFF/V1/fishing_hours');
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Filter by "WLD" to get all global fishing effort rasters in 2016
+var effort_all = gfw
+  .filterMetadata('country', 'equals', 'WLD')
+  .filterDate('2016-01-01','2017-01-01');
+  
+// Filter by "WLD" to get all global fishing effort rasters in 2013
+var effort_all2 = gfw
+  .filterMetadata('country', 'equals', 'WLD')
+  .filterDate('2013-01-01','2014-01-01');
+  
+// Filter by "WLD" to get all global fishing effort rasters in 2014
+var effort_all3 = gfw
+  .filterMetadata('country', 'equals', 'WLD')
+  .filterDate('2014-01-01','2015-01-01');
+  
+// Filter by "WLD" to get all global fishing effort rasters in 2015
+var effort_all4 = gfw
+  .filterMetadata('country', 'equals', 'WLD')
+  .filterDate('2015-01-01','2016-01-01');
+  
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Aggregate 2016 collection to single image of global fishing effort
+var effort_2016 = effort_all.sum();
+
+// Aggregate 2013 collection to single image of global fishing effort
+var effort_2013 = effort_all2.sum();
+
+// Aggregate 2014 collection to single image of global fishing effort
+var effort_2014 = effort_all3.sum();
+
+// Aggregate 2015 collection to single image of global fishing effort
+var effort_2015 = effort_all4.sum();
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Sum bands to get total effort across gear types
+var effort_all_2016 = effort_2016.reduce(ee.Reducer.sum());
+
+// Sum bands to get total effort across gear types
+var effort_all_2013 = effort_2013.reduce(ee.Reducer.sum());
+
+// Sum bands to get total effort across gear types
+var effort_all_2014 = effort_2014.reduce(ee.Reducer.sum());
+
+// Sum bands to get total effort across gear types
+var effort_all_2015 = effort_2015.reduce(ee.Reducer.sum());
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Import the WDPA FeatureCollection and select marine protected areas
+var wdpa = ee.FeatureCollection('WCMC/WDPA/current/polygons');
+var mpas = wdpa.filterMetadata('MARINE', 'equals', '2');
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Extract the PIPA polygon from the MPA collection and use it to clip our total effort layer
+var pipa = wdpa.filterMetadata('WDPAID', 'equals', 220201);
+// 2016 data
+var effort_all_2016_pos = effort_all_2016.select('sum').gt(0);
+//print(effort_all_2016_pos);
+var effort_all_2016_pos_area = effort_all_2016_pos.multiply(ee.Image.pixelArea());
+
+var areaStats4 = effort_all_2016_pos_area.reduceRegion({
+  geometry: pipa.geometry(),
+  reducer: ee.Reducer.sum(),
+  scale: 1000,
+  bestEffort: true,
+  maxPixels: 1e13
+});
+//print(ee.Number(areaStats4.get('sum')).divide(1e6));
+
+// 2013 data
+var effort_all_2013_pos = effort_all_2013.select('sum').gt(0);
+//print(effort_all_2013_pos);
+var effort_all_2013_pos_area = effort_all_2013_pos.multiply(ee.Image.pixelArea());
+
+var areaStats = effort_all_2013_pos_area.reduceRegion({
+  geometry: pipa.geometry(),
+  reducer: ee.Reducer.sum(),
+  scale: 1000,
+  bestEffort: true,
+  maxPixels: 1e13
+});
+//print(ee.Number(areaStats.get('sum')).divide(1e6));
+
+
+// 2014 data
+
+var effort_all_2014_pos = effort_all_2014.select('sum').gt(0);
+//print(effort_all_2014_pos);
+var effort_all_2014_pos_area = effort_all_2014_pos.multiply(ee.Image.pixelArea());
+
+var areaStats2 = effort_all_2014_pos_area.reduceRegion({
+  geometry: pipa.geometry(),
+  reducer: ee.Reducer.sum(),
+  scale: 1000,
+  bestEffort: true,
+  maxPixels: 1e13
+});
+//print(ee.Number(areaStats2.get('sum')).divide(1e6));
+
+// 2015 data
+
+var effort_all_2015_pos = effort_all_2015.select('sum').gt(0);
+//print(effort_all_2015_pos);
+var effort_all_2015_pos_area = effort_all_2015_pos.multiply(ee.Image.pixelArea());
+
+var areaStats3 = effort_all_2015_pos_area.reduceRegion({
+  geometry: pipa.geometry(),
+  reducer: ee.Reducer.sum(),
+  scale: 1000,
+  bestEffort: true,
+  maxPixels: 1e13
+});
+//print(ee.Number(areaStats3.get('sum')).divide(1e6));
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Import GFW data
+var gfw = ee.ImageCollection('GFW/GFF/V1/fishing_hours');
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Filter by "WLD" to get all global fishing effort rasters in 2016
+var effort_all = gfw
+  .filterMetadata('country', 'equals', 'WLD')
+  .filterDate('2016-01-01','2017-01-01');
+  
+// Filter by "WLD" to get all global fishing effort rasters in 2013
+var effort_all2 = gfw
+  .filterMetadata('country', 'equals', 'WLD')
+  .filterDate('2013-01-01','2014-01-01');
+  
+// Filter by "WLD" to get all global fishing effort rasters in 2014
+var effort_al3 = gfw
+  .filterMetadata('country', 'equals', 'WLD')
+  .filterDate('2014-01-01','2015-01-01');
+  
+// Filter by "WLD" to get all global fishing effort rasters in 2015
+var effort_all4 = gfw
+  .filterMetadata('country', 'equals', 'WLD')
+  .filterDate('2015-01-01','2016-01-01');
+ 
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Aggregate 2016 collection to single image of global fishing effort
+var effort_2016 = effort_all.sum();
+
+// Aggregate 2013 collection to single image of global fishing effort
+var effort_2013 = effort_all.sum();
+
+// Aggregate 2014 collection to single image of global fishing effort
+var effort_2014 = effort_all.sum();
+
+// Aggregate 2015 collection to single image of global fishing effort
+var effort_2015 = effort_all.sum();
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// World Geometry
+//var world = ee.Geometry.Rectangle([-179.9999, -90, 180, 90], null, false);
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Select band of global trawling effort for 2016
+var all_trawling_2016 = effort_2016.select(['trawlers']);
+//print(all_trawling_2016);
+
+// Select band of global trawling effort for 2013
+var all_trawling_2013 = effort_2013.select(['trawlers']);
+//print(all_trawling_2013);
+
+// Select band of global trawling effort for 2014
+var all_trawling_2014 = effort_2014.select(['trawlers']);
+//print(all_trawling_2014);
+
+// Select band of global trawling effort for 2015
+var all_trawling_2015 = effort_2015.select(['trawlers']);
+//print(all_trawling_2015);
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Sum bands to get total effort across gear types 2016
+var effort_all_2016 = effort_2016.reduce(ee.Reducer.sum());
+
+// Sum bands to get total effort across gear types 2013
+var effort_all_2013 = effort_2013.reduce(ee.Reducer.sum());
+
+// Sum bands to get total effort across gear types 2014
+var effort_all_2014 = effort_2014.reduce(ee.Reducer.sum());
+
+// Sum bands to get total effort across gear types 2015
+var effort_all_2015 = effort_2015.reduce(ee.Reducer.sum());
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Import the WDPA FeatureCollection and select marine protected areas
+var wdpa = ee.FeatureCollection('WCMC/WDPA/current/polygons');
+var mpas = wdpa.filterMetadata('MARINE', 'equals', '2');
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+// Clip our total effort layer to the bounds of the MPA collection 2016
+var index2016 = 3;
+var checkbox4 = ui.Checkbox('Show 2016 layer', true);
+
+checkbox4.onChange(function(checked)  {
+  Map.layers().get(index2016).setShown(checked);
+})
+var mpa_effort_2016 = effort_all_2016.clipToCollection(mpas);
+Map.addLayer(mpa_effort_2016,{palette: ['00245C','003B97','0051CE','0064FF']}, '2016'); // Blue
+
+// Clip our total effort layer to the bounds of the MPA collection 2013
+var index2013 = 0;
+var checkbox = ui.Checkbox('Show 2013 layer', true);
+
+checkbox.onChange(function(checked) {
+  Map.layers().get(index2013).setShown(checked);
+})
+var mpa_effort_2013 = effort_all_2013.clipToCollection(mpas);
+Map.addLayer(mpa_effort_2013,{palette: ['4D0000','870000','BB0000','FF0000']}, '2013'); // Red
+
+// Clip our total effort layer to the bounds of the MPA collection 2014
+var index2014 = 1;
+var checkbox2 = ui.Checkbox('Show 2014 layer', true);
+
+checkbox2.onChange(function(checked)  {
+  Map.layers().get(index2014).setShown(checked);
+});
+var mpa_effort_2014 = effort_all_2014.clipToCollection(mpas);
+Map.addLayer(mpa_effort_2014,{palette: ['5A3400','905300','C47100','FF9300']}, '2014'); // Orange
+
+// Clip our total effort layer to the bounds of the MPA collection 2015
+var index2015 = 0;
+var checkbox3 = ui.Checkbox('Show 2015 layer', true);
+
+checkbox3.onChange(function(checked) {
+  // Shows or hides the first map layer based on the checkbox's value.
+  Map.layers().get(index2015).setShown(checked);
+});
+var mpa_effort_2015 = effort_all_2015.clipToCollection(mpas);
+Map.addLayer(mpa_effort_2015,{palette: ['144F00','238A00','33CA00','40FF00']}, '2015'); // Green
+
+
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+// START OF USER INTERFACE
+// ––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––
+
+var title = ui.Label({
+  value: 'Global Fishing Watch App',
+  style: {fontWeight: 'bold',
+    fontSize: '32px',
+    padding: '10px',
+    color: '#616161',}
+})
+
+var text = ui.Label({
+  value: 'Use this app to map and plot changes in the amount of fishing done in marine protected areas over the past 4 years.',
+  style: {fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#9E9E9E',
+    padding: '8px',
+    // backgroundColor: colors.transparent,
+    border: '4px solid rgba(97, 97, 97, 0.05)'
+  }
+})
+
+var label = ui.Label({
+  value: 'The following chart shows the time series of area fished by trawlers inside of marine proteced areas across the world. Maps were acquired from the Global Fishing Watch (GFW) Dataset.',
+  style: {fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#9E9E9E',
+    padding: '0px 0px 0px 8px',
+    // backgroundColor: colors.transparent,
+
+  }
+})
+
+
+
+var text2 = ui.Label({
+  value: 'Each map shows different polygons in oceans that are marine protected areas, or areas where fishing is prohibited. Each layer shows how much fishing was done in these MPAs. The lighter the shade of color, the less fishing done in the area.',
+  style: {fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#9E9E9E',
+    padding: '0px 0px 0px 8px',
+    // backgroundColor: colors.transparent,
+
+  }
+})
+
+
+// Define a DataTable using a JavaScript literal.
+var dataTable = {
+  cols: [{id: 'name', label: 'Year', type: 'string'},
+         {id: 'Area', label: 'Area (sq km)', type: 'number'}],
+  rows: [{c: [{v: '2013'}, {v: 38.62983525}]},
+         {c: [{v: '2014'}, {v: 451.165030375}]},
+         {c: [{v: '2015'}, {v: 174.29798635392157}]},
+         {c: [{v: '2016'}, {v: 2610.167710521079}]}]
+};
+
+// Define a dictionary of customization options.
+var options = {
+  title: 'Fishing in Marine Protected Areas',
+  vAxis: {title: 'Year'},
+  legend: {position: 'none'},
+  hAxis: {
+    title: 'Area (sq km)',
+    logScale: true
+  }
+};
+    
+    
+// Make a BarChart from the table and the options.
+var chart = new ui.Chart(dataTable, 'BarChart', options);
+
+ui.root.add(panel);
+panel.add(title);
+panel.add(text);
+panel.add(text2);
+panel.add(checkbox);
+panel.add(checkbox2);
+panel.add(checkbox3);
+panel.add(checkbox4)
+panel.add(label);
+panel.add(chart);
+
+Map.setCenter(-170.1322, -14.2710, 5)
